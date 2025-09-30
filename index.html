@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dobsonian Equatorial Platform Designer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dobsonian Equatorial Platform Designer</h1>
+            <p class="subtitle">Calculate parameters and generate designs for your telescope platform</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="input-section">
+                <h2>Telescope Specifications</h2>
+                
+                <div class="input-group">
+                    <label for="rb-r">Rocker Box Radius (mm)</label>
+                    <input type="number" id="rb-r" value="245" min="100" max="1000">
+                </div>
+                
+                <div class="input-group">
+                    <label for="rb-z">Rocker Box Height (mm)</label>
+                    <input type="number" id="rb-z" value="535" min="100" max="1500">
+                </div>
+                
+                <div class="input-group">
+                    <label for="tube-lbs">Tube Weight (lbs)</label>
+                    <input type="number" id="tube-lbs" value="24.25" min="5" max="100" step="0.1">
+                </div>
+                
+                <div class="input-group">
+                    <label for="rb-lbs">Rocker Box Weight (lbs)</label>
+                    <input type="number" id="rb-lbs" value="25" min="5" max="100" step="0.1">
+                </div>
+                
+                <h2>Platform Specifications</h2>
+                
+                <div class="input-group">
+                    <label for="eqp-z">Platform Height (mm)</label>
+                    <input type="number" id="eqp-z" value="160" min="50" max="300">
+                </div>
+                
+                <div class="input-group">
+                    <label for="eqp-h">Platform Thickness (mm)</label>
+                    <input type="number" id="eqp-h" value="18" min="10" max="50">
+                </div>
+                
+                <div class="input-group">
+                    <label for="eqp-lbs">Platform Weight (lbs)</label>
+                    <input type="number" id="eqp-lbs" value="15" min="5" max="50" step="0.1">
+                </div>
+                
+                <div class="input-group">
+                    <label for="bs-h">South Bearing Height (mm)</label>
+                    <input type="number" id="bs-h" value="75" min="10" max="200">
+                </div>
+                
+                <div class="input-group">
+                    <label for="bs-d">South Bearing Diameter (mm)</label>
+                    <input type="number" id="bs-d" value="15" min="5" max="50">
+                </div>
+                
+                <h2>Bearing Specifications</h2>
+                
+                <div class="input-group">
+                    <label for="bn-h">North Bearing Width (mm)</label>
+                    <input type="number" id="bn-h" value="20" min="10" max="50">
+                </div>
+                
+                <div class="input-group">
+                    <label for="bn-holes-d">Bolt Hole Diameter (mm)</label>
+                    <input type="number" id="bn-holes-d" value="10" min="5" max="20">
+                </div>
+                
+                <div class="input-group">
+                    <label for="bn-support-h">Bearing Support Height (mm)</label>
+                    <input type="number" id="bn-support-h" value="10" min="5" max="30">
+                </div>
+                
+                <h2>Template Settings</h2>
+                
+                <div class="input-group">
+                    <label for="line-thickness">Line Thickness (mm)</label>
+                    <input type="number" id="line-thickness" value="0.8" min="0.1" max="2" step="0.1">
+                </div>
+                
+                <div class="input-group">
+                    <label for="text-size">Text Size (mm)</label>
+                    <input type="number" id="text-size" value="5" min="2" max="10" step="0.5">
+                </div>
+                
+                <div class="input-group">
+                    <label for="show-annotations">Show Annotations</label>
+                    <select id="show-annotations">
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+                
+                <h2>Printer Specifications</h2>
+                
+                <div class="input-group">
+                    <label for="printer-x">Printer Bed Size (mm)</label>
+                    <input type="number" id="printer-x" value="235" min="100" max="500">
+                </div>
+                
+                <h2>Timber Parts</h2>
+                
+                <div class="input-group">
+                    <label for="timber-thickness">Timber Thickness (mm)</label>
+                    <input type="number" id="timber-thickness" value="18" min="10" max="50">
+                </div>
+                
+                <div class="input-group">
+                    <label for="base-width">Base Width (mm)</label>
+                    <input type="number" id="base-width" value="600" min="300" max="1200">
+                </div>
+                
+                <div class="input-group">
+                    <label for="base-depth">Base Depth (mm)</label>
+                    <input type="number" id="base-depth" value="600" min="300" max="1200">
+                </div>
+                
+                <h2>Location</h2>
+                
+                <div class="input-group">
+                    <label for="latitude">Your Latitude (°)</label>
+                    <input type="number" id="latitude" value="38.12" min="-90" max="90" step="0.01">
+                </div>
+                
+                <button id="calculate-btn">Calculate Parameters</button>
+            </div>
+            
+            <div class="output-section">
+                <div class="tabs">
+                    <div class="tab active" data-tab="visualization">Visualization</div>
+                    <div class="tab" data-tab="results">Results</div>
+                    <div class="tab" data-tab="timber">Timber Parts</div>
+                    <div class="tab" data-tab="parts">3D Printed Parts</div>
+                    <div class="tab" data-tab="templates">Templates</div>
+                    <div class="tab" data-tab="openscad">OpenSCAD Output</div>
+                </div>
+                
+                <div class="tab-content active" id="visualization-tab">
+                    <h2>Platform Visualization</h2>
+                    <div class="visualization">
+                        <div class="platform-base"></div>
+                        <div class="north-bearing"></div>
+                        <div class="south-bearing"></div>
+                        <div class="platform-top" id="platform-top"></div>
+                        <div class="telescope"></div>
+                        <div class="latitude-line"></div>
+                        <div class="cog-marker" id="cog-marker"></div>
+                        <div class="angle-label" id="angle-label">Latitude: 38.12°</div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="results-tab">
+                    <h2>Calculation Results</h2>
+                    <div class="results">
+                        <div class="result-card">
+                            <div class="result-title">Platform Angle</div>
+                            <div class="result-value" id="platform-angle">38.12°</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Center of Gravity Height</div>
+                            <div class="result-value" id="cog-z">367.5 mm</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Bearing Radius</div>
+                            <div class="result-value" id="bearing-radius">142.5 mm</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Platform Height</div>
+                            <div class="result-value" id="platform-height">160 mm</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Bearing Angle (B)</div>
+                            <div class="result-value" id="bearing-angle">15.2°</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Platform Width</div>
+                            <div class="result-value" id="platform-width">550 mm</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="timber-tab">
+                    <h2>Timber Parts Dimensions</h2>
+                    <div class="timber-parts">
+                        <div class="timber-part">
+                            <div class="part-title">Base Platform</div>
+                            <div class="part-canvas" id="base-canvas">
+                                <div class="timber-base" id="timber-base">
+                                    <!-- Dimension visualization will be drawn here -->
+                                </div>
+                            </div>
+                            <div class="part-dimensions">
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Width:</span>
+                                    <span class="dimension-value" id="base-width-value">600 mm</span>
+                                </div>
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Depth:</span>
+                                    <span class="dimension-value" id="base-depth-value">600 mm</span>
+                                </div>
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Thickness:</span>
+                                    <span class="dimension-value" id="base-thickness-value">18 mm</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="timber-part">
+                            <div class="part-title">Top Platform</div>
+                            <div class="part-canvas" id="platform-canvas">
+                                <div class="timber-platform" id="timber-platform">
+                                    <!-- Dimension visualization will be drawn here -->
+                                </div>
+                            </div>
+                            <div class="part-dimensions">
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Width:</span>
+                                    <span class="dimension-value" id="platform-width-value">550 mm</span>
+                                </div>
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Depth:</span>
+                                    <span class="dimension-value" id="platform-depth-value">550 mm</span>
+                                </div>
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Thickness:</span>
+                                    <span class="dimension-value" id="platform-thickness-value">18 mm</span>
+                                </div>
+                                <div class="dimension-line">
+                                    <span class="dimension-label">Bearing Holes:</span>
+                                    <span class="dimension-value" id="bearing-holes-value">3</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="parts-tab">
+                    <h2>3D Printed Parts</h2>
+                    <div class="part-selector">
+                        <p>Select which part to generate:</p>
+                        <div class="part-options">
+                            <div class="part-option selected" data-part="bne">Bearing - North East</div>
+                            <div class="part-option" data-part="bnw">Bearing - North West</div>
+                            <div class="part-option" data-part="tbs">Template - Bearing South</div>
+                            <div class="part-option" data-part="bfs">Bearing - Front South</div>
+                            <div class="part-option" data-part="info">Information Plate</div>
+                        </div>
+                    </div>
+                    <div class="results">
+                        <div class="result-card">
+                            <div class="result-title">Selected Part</div>
+                            <div class="result-value" id="selected-part">Bearing - North East</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Print Time Estimate</div>
+                            <div class="result-value" id="print-time">4-6 hours</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Material Needed</div>
+                            <div class="result-value" id="material-needed">~50g</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="result-title">Support Needed</div>
+                            <div class="result-value" id="support-needed">Yes</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="templates-tab">
+                    <h2>Template Generation</h2>
+                    <div class="template-options">
+                        <div class="template-card">
+                            <h3>Platform Template (TPT)</h3>
+                            <p>Generate a detailed 2D template with dimensions and annotations for cutting the platform.</p>
+                            <div class="template-actions">
+                                <button class="template-btn" data-template="tpt-svg">Download SVG Template</button>
+                                <button class="template-btn" data-template="tpt-pdf">Download PDF Template</button>
+                                <button class="template-btn" data-template="tpt-png">Download PNG Template</button>
+                            </div>
+                        </div>
+                        
+                        <div class="template-card">
+                            <h3>Bearing Templates</h3>
+                            <p>Generate templates for bearing placement and alignment.</p>
+                            <div class="template-actions">
+                                <button class="template-btn" data-template="bearing-svg">Download Bearing Template</button>
+                                <button class="template-btn" data-template="alignment-svg">Download Alignment Guide</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="template-preview" id="template-preview">
+                        <h3>Template Preview</h3>
+                        <div class="preview-placeholder">
+                            <p>Generate a template to see preview here</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="tab-content" id="openscad-tab">
+                    <h2>OpenSCAD Output</h2>
+                    <div class="openscad-output" id="openscad-output">
+                        // OpenSCAD code will be generated here
+                        <button class="copy-btn" id="copy-btn">Copy Code</button>
+                    </div>
+                </div>
+                
+                <h2>Export Design</h2>
+                <div class="export-options">
+                    <button class="export-btn" id="generate-openscad">Generate OpenSCAD Code</button>
+                    <button class="export-btn" id="generate-template">Generate Template</button>
+                    <button class="export-btn" id="save-parameters">Save Parameters</button>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Note: This tool provides approximate dimensions. Always verify measurements before construction.</p>
+            <p>© 2023 Equatorial Platform Designer | Based on OpenSCAD design by Naveen Malik</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
