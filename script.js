@@ -368,191 +368,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('support-needed').textContent = partInfo[part].support;
     }
     
-function generateTemplate(templateType) {
-    const params = getInputValues();
-    const results = calculateResults(params);
-    
-    // Show loading state
-    const preview = document.getElementById('template-preview');
-    preview.innerHTML = `
-        <h3>Generating Template...</h3>
-        <div class="status-message status-info">
-            <div class="loading"></div>
-            Generating ${templateType} template...
-        </div>
-    `;
-    
-    // Generate proper OpenSCAD code
-    const openscadCode = buildTemplateScadCode(params, results, templateType);
-    
-    // Determine output format
-    let outputFormat = 'svg';
-    if (templateType.endsWith('-pdf')) outputFormat = 'pdf';
-    if (templateType.endsWith('-png')) outputFormat = 'png';
-    
-    // Send to server for rendering
-    fetch('/generate-template', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            openscad_code: openscadCode,
-            format: outputFormat
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => { throw new Error(err.error); });
-        }
-        return response.blob();
-    })
-    .then(blob => {
-        // Create download link
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `platform_template.${outputFormat}`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        // Update preview
-        preview.innerHTML = `
-            <h3>Template Generated Successfully</h3>
-            <div class="status-message status-success">
-                ✓ Template has been downloaded
-            </div>
-        `;
-    })
-    .catch(error => {
-        console.error('Error generating template:', error);
-        preview.innerHTML = `
-            <h3>Error Generating Template</h3>
-            <div class="status-message status-error">
-                ✗ ${error.message}
-            </div>
-        `;
-    });
-}
-
-function buildTemplateScadCode(params, results, templateType) {
-    // Basic template SCAD code
-    return `
-// Platform Template
-part = "tpt";
-mode = "customizer";
-
-// Parameters from web interface
-printer_x = ${params.printerX};
-rb_r = ${params.rbR};
-rb_z = ${params.rbZ};
-tube_lbs = ${params.tubeLbs};
-rb_lbs = ${params.rbLbs};
-latitude = ${params.latitude};
-eqp_z = ${params.eqpZ};
-eqp_h = ${params.eqpH};
-eqp_lbs = ${params.eqpLbs};
-bs_h = ${params.bsH};
-bs_d = ${params.bsD};
-bn_h = ${params.bnH};
-bn_holes_d = ${params.bnHolesD};
-bn_support_h = ${params.bnSupportH};
-line_thickness = ${params.lineThickness};
-text_size = ${params.textSize};
-show_annotations = ${params.showAnnotations};
-
-$fn = 100;
-T = latitude;
-
-// Basic calculations
-cog_z = ${results.cogZ.toFixed(2)};
-cir1_eqp_x = ${results.cir1_eqp_x.toFixed(2)};
-cir1_eqp_y = ${results.cir1_eqp_y.toFixed(2)};
-B = ${results.B.toFixed(2)};
-bs_y = ${results.bsY.toFixed(2)};
-bn_y = ${results.bnY.toFixed(2)};
-
-// Simple 2D template
-module template_platform_top_2d() {
-    // Platform outline
-    difference() {
-        // Main platform
-        square([cir1_eqp_x * 2, bn_y - bs_y + cir1_eqp_y/2], center=false);
-        
-        // Bearing holes
-        translate([cir1_eqp_x * 0.25, bn_y * 0.2])
-            circle(d=bs_d);
-        translate([cir1_eqp_x * 1.75, bn_y * 0.2])
-            circle(d=bs_d);
-        translate([cir1_eqp_x, bn_y * 0.8])
-            circle(d=bs_d);
-    }
-    
-    // Dimensions
-    if (show_annotations) {
-        // Platform dimensions
-        translate([cir1_eqp_x, -10])
-            text(str("Width: ", round(cir1_eqp_x * 2), "mm"), size=text_size, halign="center");
-        
-        translate([-20, (bn_y - bs_y)/2])
-            rotate([0, 0, 90])
-            text(str("Length: ", round(bn_y - bs_y + cir1_eqp_y/2), "mm"), size=text_size, halign="center");
-    }
-}
-
-// Render the template
-template_platform_top_2d();
-`;
-}
-module dimension_line(p1, p2, label, offset=20) {
-    color("Red") {
-        line(p1, p2, thickness=line_thickness*0.5);
-        mid_x = (p1[0] + p2[0]) / 2;
-        mid_y = (p1[1] + p2[1]) / 2;
-        dx = p2[0] - p1[0];
-        dy = p2[1] - p1[1];
-        length = sqrt(dx*dx + dy*dy);
-        perp_x = -dy/length * offset;
-        perp_y = dx/length * offset;
-        translate([mid_x + perp_x, mid_y + perp_y])
-            text(label, size=text_size, halign="center", valign="center");
-    }
-}
-
-module template_platform_top_2d() {
-    projection(cut = true) {
-        // Your template_platform_top module
-    }
-    
-    if (show_annotations) {
-        // Your annotation code
-        dimension_line([-cir1_eqp_x, bs_y-cir1_eqp_y/4-25], 
-                      [cir1_eqp_x, bs_y-cir1_eqp_y/4-25], 
-                      str("Platform Width: ", round(cir1_eqp_x*2), "mm"));
-        
-        // Add more annotations as needed
-    }
-}
-
-// Add all other necessary modules...
-
-if (mode == "customizer") {
-    if (part == "tpt") {
-        template_platform_top_2d();
-    } else if (part == "bnw") {
-        rotate([0,180,0]) bearing_north_west(false);
-    } else if (part == "bne") {
-        rotate([0,180,0]) bearing_north_east(false);
-    } else if (part == "tbs") {
-        template_bearing_south();
-    } else if (part == "bfs") {
-        bearing_front_south();
-    } else if (part == "info") {
-        information_plate();
-    }
-}`;
+    function buildTemplateScadCode(params, results, partType) {
+    // Just return a simple template - the heavy lifting is now in Flask
+    return `// This will be generated by the server for part: ${partType}`;
     }
     
     function generateTemplate(templateType) {
@@ -571,13 +389,23 @@ if (mode == "customizer") {
         
         // Generate OpenSCAD code for template
         let openscadCode;
+        let partType = 'tpt'; // default
+        
         if (templateType.startsWith('tpt-')) {
-            openscadCode = buildOpenscadCode(params, results, 'tpt');
+            partType = 'tpt';
         } else if (templateType === 'bearing-svg') {
-            openscadCode = buildOpenscadCode(params, results, 'tbs');
-        } else {
-            openscadCode = buildOpenscadCode(params, results, 'tpt');
+            partType = 'tbs';
+        } else if (templateType === 'front-bearing') {
+            partType = 'bfs';
+        } else if (templateType === 'north-east-bearing') {
+            partType = 'bne';
+        } else if (templateType === 'north-west-bearing') {
+            partType = 'bnw';
+        } else if (templateType === 'info-plate') {
+            partType = 'info';
         }
+        
+        openscadCode = buildTemplateScadCode(params, results, partType);
         
         // Determine output format
         let outputFormat = 'svg';
@@ -611,7 +439,10 @@ if (mode == "customizer") {
             // Set appropriate filename
             let filename = `platform_template.${outputFormat}`;
             if (templateType === 'bearing-svg') filename = 'bearing_template.svg';
-            if (templateType === 'alignment-svg') filename = 'alignment_guide.svg';
+            if (templateType === 'front-bearing') filename = 'front_bearing.stl';
+            if (templateType === 'north-east-bearing') filename = 'north_east_bearing.stl';
+            if (templateType === 'north-west-bearing') filename = 'north_west_bearing.stl';
+            if (templateType === 'info-plate') filename = 'info_plate.stl';
             
             a.download = filename;
             document.body.appendChild(a);
@@ -625,12 +456,12 @@ if (mode == "customizer") {
                 <div class="status-message status-success">
                     ✓ ${filename} has been downloaded
                 </div>
-                <p>Template includes:</p>
+                <p>Template includes your complete OpenSCAD design with:</p>
                 <ul>
-                    <li>Platform dimensions: ${Math.round(results.cir1_eqp_x * 2)}mm × ${Math.round(results.bnY - results.bsY + results.cir1_eqp_y/2)}mm</li>
-                    <li>Bearing locations and angles</li>
-                    <li>Center of gravity calculations</li>
-                    <li>Construction annotations</li>
+                    <li>Full platform geometry</li>
+                    <li>All bearing components</li>
+                    <li>Detailed annotations</li>
+                    <li>Custom parameters</li>
                 </ul>
             `;
         })
@@ -646,8 +477,182 @@ if (mode == "customizer") {
         });
     }
     
+    function generateOpenscad() {
+        const params = getInputValues();
+        const results = calculateResults(params);
+        
+        const openscadCode = buildTemplateScadCode(params, results, 'tpt');
+        
+        // Display the code
+        const output = document.getElementById('openscad-output');
+        if (output) {
+            output.textContent = openscadCode;
+        }
+        
+        // Show the OpenSCAD output tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        
+        // Activate the OpenSCAD tab
+        const openscadTab = document.querySelector('[data-tab="openscad"]');
+        const openscadContent = document.getElementById('openscad-tab');
+        
+        if (openscadTab && openscadContent) {
+            openscadTab.classList.add('active');
+            openscadContent.classList.add('active');
+        }
+    }
+    
     // Initialize timber visualizations if timber tab is active by default
     if (document.getElementById('timber-tab').classList.contains('active')) {
         updateTimberVisualizations();
     }
+
+// Add these new functions to your script.js
+
+let currentPreviews = {};
+
+function generateAllParts() {
+    const params = getInputValues();
+    
+    // Show loading state
+    const preview = document.getElementById('template-preview');
+    preview.innerHTML = `
+        <h3>Generating All Parts...</h3>
+        <div class="status-message status-info">
+            <div class="loading"></div>
+            Creating SCAD files and templates...
+        </div>
+    `;
+    
+    // Send to server for ZIP generation
+    fetch('/generate-all-parts', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            parameters: params
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Server error: ' + response.status);
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'platform_design.zip';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        // Update preview
+        preview.innerHTML = `
+            <h3>All Parts Generated Successfully</h3>
+            <div class="status-message status-success">
+                ✓ platform_design.zip has been downloaded
+            </div>
+            <div class="download-contents">
+                <h4>ZIP file contains:</h4>
+                <ul>
+                    <li><strong>tpt.scad</strong> - Platform Top Template</li>
+                    <li><strong>bne.scad</strong> - North East Bearing</li>
+                    <li><strong>bnw.scad</strong> - North West Bearing</li>
+                    <li><strong>tbs.scad</strong> - Template Bearing South</li>
+                    <li><strong>bfs.scad</strong> - Front South Bearing</li>
+                    <li><strong>info.scad</strong> - Information Plate</li>
+                    <li><strong>platform_template.svg</strong> - 2D Cutting Template</li>
+                    <li><strong>README.txt</strong> - Instructions</li>
+                </ul>
+            </div>
+        `;
+    })
+    .catch(error => {
+        console.error('Error generating parts:', error);
+        preview.innerHTML = `
+            <h3>Error Generating Parts</h3>
+            <div class="status-message status-error">
+                ✗ ${error.message}
+            </div>
+        `;
+    });
+}
+
+function previewPart(partType) {
+    const params = getInputValues();
+    const openscadCode = buildTemplateScadCode(params, calculateResults(params), partType);
+    
+    // Show loading for this part
+    const previewContainer = document.getElementById(`preview-${partType}`);
+    if (previewContainer) {
+        previewContainer.innerHTML = '<div class="loading-small">Generating preview...</div>';
+    }
+    
+    // Send to server for preview generation
+    fetch('/preview-part', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            openscad_code: openscadCode,
+            part_type: partType
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Preview generation failed');
+        }
+        return response.blob();
+    })
+    .then(blob => {
+        const url = URL.createObjectURL(blob);
+        currentPreviews[partType] = url;
+        
+        const previewContainer = document.getElementById(`preview-${partType}`);
+        if (previewContainer) {
+            previewContainer.innerHTML = `
+                <img src="${url}" alt="${partType} preview" class="part-preview-image">
+                <div class="preview-actions">
+                    <button onclick="downloadPart('${partType}')" class="btn-small">Download SCAD</button>
+                </div>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error generating preview:', error);
+        const previewContainer = document.getElementById(`preview-${partType}`);
+        if (previewContainer) {
+            previewContainer.innerHTML = '<div class="error-small">Preview failed</div>';
+        }
+    });
+}
+
+function downloadPart(partType) {
+    const params = getInputValues();
+    const openscadCode = buildTemplateScadCode(params, calculateResults(params), partType);
+    
+    const blob = new Blob([openscadCode], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${partType}.scad`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+}
+
+function previewAllParts() {
+    const parts = ['tpt', 'bne', 'bnw', 'tbs', 'bfs', 'info'];
+    parts.forEach(part => previewPart(part));
+}
+
+// Update your HTML to include the new interface
 });
