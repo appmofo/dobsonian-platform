@@ -362,6 +362,7 @@ if (mode == "customizer") {
     }
 }
 """
+
 def generate_openscad_file(openscad_code, output_path, format='stl'):
     """Generate a file from OpenSCAD code"""
     try:
@@ -489,50 +490,20 @@ def generate_template():
 def preview_part():
     """Generate a preview image for a specific part"""
     try:
-        print(f"=== Preview Part Request Debug ===")
-        print(f"Request method: {request.method}")
-        print(f"Content-Type: {request.content_type}")
-        print(f"Content-Length: {request.content_length}")
-        print(f"Headers: {dict(request.headers)}")
-        
-        # Get the raw request data
-        raw_data = request.get_data(as_text=True)
-        print(f"Raw request data: {raw_data[:500]}...")  # First 500 chars
-        
-        # Try to parse JSON manually
-        import json
-        try:
-            data = json.loads(raw_data)
-            print(f"Parsed JSON data: {data}")
-        except json.JSONDecodeError as e:
-            print(f"JSON decode error: {e}")
-            print(f"Problematic data: {raw_data}")
-            return jsonify({'error': f'JSON decode error: {str(e)}'}), 400
-        
-        if not data:
-            return jsonify({'error': 'No JSON data provided'}), 400
-            
+        data = request.get_json(force=True)
         params = data.get('parameters', {})
         part_type = data.get('part_type', 'tpt')
         
-        print(f"Part type: {part_type}")
-        print(f"Parameters: {params}")
+        print(f"Generating PNG preview for {part_type}")
         
-        # Test with simple OpenSCAD code first
-        test_code = "cube([10,10,10]);"
-        print(f"Using test OpenSCAD code: {test_code}")
+        scad_code = build_scad_code_for_part(params, part_type)
         
         with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
             png_path = f.name
         
-        print(f"Generating PNG preview...")
-        generate_openscad_file(test_code, png_path, 'png')
+        generate_openscad_file(scad_code, png_path, 'png')
         
-        if os.path.exists(png_path) and os.path.getsize(png_path) > 0:
-            print(f"Successfully generated preview: {png_path}")
-            return send_file(png_path, mimetype='image/png')
-        else:
-            raise Exception("PNG file was not created or is empty")
+        return send_file(png_path, mimetype='image/png')
         
     except Exception as e:
         print(f"Error in preview_part: {str(e)}")
