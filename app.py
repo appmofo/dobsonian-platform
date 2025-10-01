@@ -4,6 +4,7 @@ import tempfile
 from flask import Flask, request, jsonify, send_file
 import subprocess
 import threading
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -361,7 +362,6 @@ if (mode == "customizer") {
     }
 }
 """
-
 def generate_openscad_file(openscad_code, output_path, format='stl'):
     """Generate a file from OpenSCAD code"""
     try:
@@ -370,29 +370,52 @@ def generate_openscad_file(openscad_code, output_path, format='stl'):
             f.write(openscad_code)
             scad_temp_path = f.name
         
+        print(f"Generated temporary SCAD file: {scad_temp_path}")
+        print(f"Output format: {format}")
+        print(f"Output path: {output_path}")
+        
         # Generate the requested format
         if format == 'svg':
             cmd = ['openscad', '-o', output_path, '--export-format', 'svg', scad_temp_path]
         elif format == 'png':
-            cmd = ['openscad', '-o', output_path, '--export-format', 'png', '--imgsize', '1024,768', scad_temp_path]
+            # Use xvfb-run for PNG generation in headless environment
+            cmd = [
+                'xvfb-run', '-a', 
+                'openscad', 
+                '-o', output_path,
+                '--export-format', 'png',
+                '--imgsize', '800,600',
+                '--viewall',  # Auto-adjust camera to fit object
+                scad_temp_path
+            ]
         elif format == 'pdf':
             cmd = ['openscad', '-o', output_path, '--export-format', 'pdf', scad_temp_path]
         else:  # stl
             cmd = ['openscad', '-o', output_path, scad_temp_path]
         
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+        print(f"Running command: {' '.join(cmd)}")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         
         # Clean up temporary SCAD file
         os.unlink(scad_temp_path)
         
         if result.returncode != 0:
+            print(f"OpenSCAD stderr: {result.stderr}")
+            print(f"OpenSCAD stdout: {result.stdout}")
             raise Exception(f"OpenSCAD error: {result.stderr}")
             
+        # Verify the output file was created
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            raise Exception(f"Output file was not created or is empty: {output_path}")
+            
+        print(f"Successfully generated {format} file: {output_path} ({os.path.getsize(output_path)} bytes)")
         return True
+        
     except Exception as e:
         # Clean up on error
         if 'scad_temp_path' in locals() and os.path.exists(scad_temp_path):
             os.unlink(scad_temp_path)
+        print(f"Error in generate_openscad_file: {str(e)}")
         raise e
 
 def build_scad_code_for_part(params, part_type):
@@ -417,6 +440,105 @@ def build_scad_code_for_part(params, part_type):
         text_size=params.get('textSize', 5),
         show_annotations=str(params.get('showAnnotations', True)).lower()
     )
+
+@app.route('/')
+def index():
+    return send_file('index.html')
+
+@app.route('/health')
+def health():
+    return jsonify({
+        "status": "healthy", 
+        "openscad": "working",
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/generate-template', methods=['POST'])
+def generate_template():
+    """Generate a template file from OpenSCAD code"""
+    try:
+        data = request.json
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        openscad_code = data.get('openscad_code', '')
+        output_format = data.get('format', 'svg')
+        template_type = data.get('template_type', 'unknown')
+        
+        print(f"=== Generating Template ===")
+        print(f"Template type: {template_type}")
+        print(f"Output format: {output_format}")
+        print(f"OpenSCAD code length: {len(openscad_code)}")
+        print(f"First 200 chars: {openscad_code[:200]}...")
+        
+        if not openscad_code:
+            return jsonify({'error': 'No OpenSCAD code provided'}), 400
+        
+        with tempfile.NamedTemporaryFile(suffix=f'.{output_format}', delete=False) as f:
+            output_path = f.name
+        
+        generate_openscad_file(openscad_code, output_path, output_format)
+        
+        return send_file(output_path, as_attachment=True)
+        
+    except Exception as e:
+        print(f"Error in generate_template: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/preview-part', methods=['POST'])
+def preview_part():
+    """Generate a preview image for a specific part"""
+    try:
+        print(f"=== Preview Part Request Debug ===")
+        print(f"Request method: {request.method}")
+        print(f"Content-Type: {request.content_type}")
+        print(f"Content-Length: {request.content_length}")
+        print(f"Headers: {dict(request.headers)}")
+        
+        # Get the raw request data
+        raw_data = request.get_data(as_text=True)
+        print(f"Raw request data: {raw_data[:500]}...")  # First 500 chars
+        
+        # Try to parse JSON manually
+        import json
+        try:
+            data = json.loads(raw_data)
+            print(f"Parsed JSON data: {data}")
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            print(f"Problematic data: {raw_data}")
+            return jsonify({'error': f'JSON decode error: {str(e)}'}), 400
+        
+        if not data:
+            return jsonify({'error': 'No JSON data provided'}), 400
+            
+        params = data.get('parameters', {})
+        part_type = data.get('part_type', 'tpt')
+        
+        print(f"Part type: {part_type}")
+        print(f"Parameters: {params}")
+        
+        # Test with simple OpenSCAD code first
+        test_code = "cube([10,10,10]);"
+        print(f"Using test OpenSCAD code: {test_code}")
+        
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            png_path = f.name
+        
+        print(f"Generating PNG preview...")
+        generate_openscad_file(test_code, png_path, 'png')
+        
+        if os.path.exists(png_path) and os.path.getsize(png_path) > 0:
+            print(f"Successfully generated preview: {png_path}")
+            return send_file(png_path, mimetype='image/png')
+        else:
+            raise Exception("PNG file was not created or is empty")
+        
+    except Exception as e:
+        print(f"Error in preview_part: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/generate-all-parts', methods=['POST'])
 def generate_all_parts():
@@ -487,40 +609,6 @@ Instructions:
             
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
-@app.route('/preview-part', methods=['POST'])
-def preview_part():
-    """Generate a preview image for a specific part"""
-    try:
-        data = request.json
-        params = data.get('parameters', {})
-        part_type = data.get('part_type', 'tpt')
-        
-        scad_code = build_scad_code_for_part(params, part_type)
-        
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            png_path = f.name
-        
-        generate_openscad_file(scad_code, png_path, 'png')
-        
-        return send_file(png_path, mimetype='image/png')
-        
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-# Keep your existing routes
-@app.route('/health')
-def health():
-    return jsonify({
-        "status": "healthy", 
-        "openscad": "working",
-        "timestamp": "2025-09-30T10:40:46.763292"
-    })
-
-@app.route('/generate-template', methods=['POST'])
-def generate_template():
-    # Your existing template generation code
-    pass
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
